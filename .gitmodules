@@ -5,3 +5,6 @@
 [submodule "blade-contracts"]
 	path = blade-contracts
 	url = https://github.com/Ethernal-Tech/blade-contracts
+[submodule "e2e-polybft/apex-bridge"]
+	path = e2e-polybft/apex-bridge
+	url = git@github.com:Ethernal-Tech/apex-bridge.git
