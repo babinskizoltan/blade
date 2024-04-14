@@ -151,7 +151,9 @@ type TestClusterConfig struct {
 
 	logsDirOnce sync.Once
 
-	UseTLS bool
+	UseTLS      bool
+	TLSCertFile string
+	TLSKeyFile  string
 }
 
 func (c *TestClusterConfig) Dir(name string) string {
@@ -470,6 +472,13 @@ func WithPredeploy(predeployString string) ClusterOption {
 func WithHTTPS() ClusterOption {
 	return func(h *TestClusterConfig) {
 		h.UseTLS = true
+	}
+}
+
+func WithTLSCertificate(certFile string, keyFile string) ClusterOption {
+	return func(h *TestClusterConfig) {
+		h.TLSCertFile = certFile
+		h.TLSKeyFile = keyFile
 	}
 }
 
@@ -816,6 +825,8 @@ func (c *TestCluster) InitTestServer(t *testing.T,
 		config.NumBlockConfirmations = c.Config.NumBlockConfirmations
 		config.BridgeJSONRPC = bridgeJSONRPC
 		config.UseTLS = c.Config.UseTLS
+		config.TLSCertFile = c.Config.TLSCertFile
+		config.TLSKeyFile = c.Config.TLSKeyFile
 	})
 
 	// watch the server for stop signals. It is important to fix the specific
