@@ -1158,13 +1158,14 @@ func (e *Eth) Sign(_ types.Address, buf argBytes) (interface{}, error) {
 		return nil, err
 	}
 
-	signedTx, err := e.txSigner.SignTx(tx, cryptoECDSAPrivKey)
+	signature, err := e.txSigner.SignText(tx, cryptoECDSAPrivKey)
 	if err != nil {
 		return nil, err
 	}
 
-	data := signedTx.MarshalRLP()
-	data[64] += 27 // Transform V from 0/1 to 27/28 according to the yellow paper
+	if err == nil {
+		signature[64] += 27 // Transform V from 0/1 to 27/28 according to the yellow paper
+	}
 
-	return argBytesPtr(data), err
+	return argBytesPtr(signature), err
 }

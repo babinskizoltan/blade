@@ -113,6 +113,33 @@ func (signer *BerlinSigner) Sender(tx *types.Transaction) (types.Address, error)
 	return recoverAddress(signer.Hash(tx), r, s, v, true)
 }
 
+// SignText this method should return the signature in 'canonical' format, with v 0 or 1.
+func (signer *BerlinSigner) SignText(tx *types.Transaction, privateKey *ecdsa.PrivateKey) ([]byte, error) {
+	if tx.Type() == types.DynamicFeeTxType {
+		return nil, types.ErrTxTypeNotSupported
+	}
+
+	if tx.Type() != types.AccessListTxType {
+		return signer.EIP155Signer.SignText(tx, privateKey)
+	}
+
+	tx = tx.Copy()
+	h := signer.Hash(tx)
+
+	signature, err := Sign(privateKey, h[:])
+	if err != nil {
+		return nil, err
+	}
+
+	if signature[64] == 27 || signature[64] == 28 {
+		// If clef is used as a backend, it may already have transformed
+		// the signature to ethereum-type signature.
+		signature[64] -= 27 // Transform V from Ethereum-legacy to 0/1
+	}
+
+	return signature, nil
+}
+
 // SignTx takes the original transaction as input and returns its signed version
 func (signer *BerlinSigner) SignTx(tx *types.Transaction, privateKey *ecdsa.PrivateKey) (*types.Transaction, error) {
 	if tx.Type() == types.DynamicFeeTxType {

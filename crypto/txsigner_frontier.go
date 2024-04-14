@@ -89,6 +89,33 @@ func (signer *FrontierSigner) sender(tx *types.Transaction, isHomestead bool) (t
 	return recoverAddress(signer.Hash(tx), r, s, parity, isHomestead)
 }
 
+// SignText this method should return the signature in 'canonical' format, with v 0 or 1.
+func (signer *FrontierSigner) SignText(tx *types.Transaction, privateKey *ecdsa.PrivateKey) ([]byte, error) {
+	return signer.signTextInternal(tx, privateKey)
+}
+
+func (signer *FrontierSigner) signTextInternal(tx *types.Transaction, privateKey *ecdsa.PrivateKey) ([]byte, error) {
+	if tx.Type() != types.LegacyTxType && tx.Type() != types.StateTxType {
+		return nil, types.ErrTxTypeNotSupported
+	}
+
+	tx = tx.Copy()
+	hash := signer.Hash(tx)
+
+	signature, err := Sign(privateKey, hash[:])
+	if err != nil {
+		return nil, err
+	}
+
+	if signature[64] == 27 || signature[64] == 28 {
+		// If clef is used as a backend, it may already have transformed
+		// the signature to ethereum-type signature.
+		signature[64] -= 27 // Transform V from Ethereum-legacy to 0/1
+	}
+
+	return signature, nil
+}
+
 // SignTx takes the original transaction as input and returns its signed version
 func (signer *FrontierSigner) SignTx(tx *types.Transaction, privateKey *ecdsa.PrivateKey) (*types.Transaction, error) {
 	return signer.signTxInternal(tx, privateKey)
