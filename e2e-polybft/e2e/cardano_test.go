@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
+	blockfrost "github.com/0xPolygon/polygon-edge/e2e-polybft/block-frost"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/cardanofw"
 	"github.com/0xPolygon/polygon-edge/helper/common"
 	"github.com/stretchr/testify/assert"
 )
 
-// Download Cardano executables from https://github.com/IntersectMBO/cardano-node/releases/tag/8.1.2 and unpack tar.gz file
+// Download Cardano executables from https://github.com/IntersectMBO/cardano-node/releases/tag/8.7.3 and unpack tar.gz file
 // Add directory where unpacked files are located to the $PATH (in example bellow `~/Apps/cardano`)
 // eq add line `export PATH=$PATH:~/Apps/cardano` to  `~/.bashrc`
 func TestE2E_CardanoTwoClustersBasic(t *testing.T) {
@@ -62,7 +63,12 @@ func TestE2E_CardanoTwoClustersBasic(t *testing.T) {
 
 			t.Log("Waiting for blocks", "id", id+1)
 
-			errors[id] = cluster.WaitForBlockWithState(10, time.Second*200)
+			t.Log("starting blockfrost")
+			bf, _ := blockfrost.NewBlockFrost(cluster, id+1)
+			bf.Start()
+
+			errors[id] = cluster.WaitForBlockWithState(1000, time.Second*2000)
+			bf.Stop()
 		}()
 	}
 

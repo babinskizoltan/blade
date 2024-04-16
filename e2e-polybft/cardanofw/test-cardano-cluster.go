@@ -186,6 +186,8 @@ func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCar
 		Port:           3000,
 	}
 
+	startTime := time.Now().UTC().Add(config.StartTimeDelay)
+
 	for _, opt := range opts {
 		opt(config)
 	}
@@ -203,7 +205,7 @@ func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCar
 	}
 
 	// init genesis
-	if err := cluster.InitGenesis(); err != nil {
+	if err := cluster.InitGenesis(startTime.Unix()); err != nil {
 		return nil, err
 	}
 
@@ -213,7 +215,7 @@ func NewCardanoTestCluster(t *testing.T, opts ...CardanoClusterOption) (*TestCar
 	}
 
 	// genesis create staked - babbage
-	if err := cluster.GenesisCreateStaked(); err != nil {
+	if err := cluster.GenesisCreateStaked(startTime); err != nil {
 		return nil, err
 	}
 
@@ -481,7 +483,7 @@ func (c *TestCardanoCluster) runCommand(binary string, args []string, stdout io.
 	return nil
 }
 
-func (c *TestCardanoCluster) InitGenesis() error {
+func (c *TestCardanoCluster) InitGenesis(startTime int64) error {
 	var b bytes.Buffer
 
 	fnContent, err := cardanoFiles.ReadFile("files/byron.genesis.spec.json")
@@ -501,7 +503,6 @@ func (c *TestCardanoCluster) InitGenesis() error {
 		return err
 	}
 
-	startTime := time.Now().UTC().Add(c.Config.StartTimeDelay).Unix()
 	args := []string{
 		"byron", "genesis", "genesis",
 		"--protocol-magic", strconv.Itoa(c.Config.NetworkMagic),
@@ -658,7 +659,7 @@ func (c *TestCardanoCluster) CopyConfigFilesAndInitDirectoriesStep2() error {
 
 // Because in Babbage the overlay schedule and decentralization parameter are deprecated,
 // we must use the "create-staked" cli command to create SPOs in the ShelleyGenesis
-func (c *TestCardanoCluster) GenesisCreateStaked() error {
+func (c *TestCardanoCluster) GenesisCreateStaked(startTime time.Time) error {
 	var b bytes.Buffer
 
 	exprectedErr := fmt.Sprintf("%d genesis keys, %d non-delegating UTxO keys, %d stake pools, %d delegating UTxO keys, %d delegation map entries",
@@ -667,6 +668,7 @@ func (c *TestCardanoCluster) GenesisCreateStaked() error {
 		"genesis", "create-staked",
 		"--genesis-dir", c.Config.Dir(""),
 		"--testnet-magic", strconv.Itoa(c.Config.NetworkMagic),
+		"--start-time", startTime.Format("2006-01-02T15:04:05Z"),
 		"--supply", "2000000000000",
 		"--supply-delegated", "240000000002",
 		"--gen-genesis-keys", strconv.Itoa(c.Config.NodesCount),
