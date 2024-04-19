@@ -64,11 +64,20 @@ func TestE2E_CardanoTwoClustersBasic(t *testing.T) {
 			t.Log("Waiting for blocks", "id", id+1)
 
 			t.Log("starting blockfrost")
-			bf, _ := blockfrost.NewBlockFrost(cluster, id+1)
-			bf.Start()
+			bf, err := blockfrost.NewBlockFrost(cluster, id+1)
+			if err != nil {
+				errors[id] = err
 
-			errors[id] = cluster.WaitForBlockWithState(10, time.Second*200)
-			bf.Stop()
+				return
+			}
+
+			if errors[id] = bf.Start(); errors[id] != nil {
+				return
+			}
+
+			defer bf.Stop()
+
+			cluster.WaitForBlockWithState(10, time.Second*200)
 		}()
 	}
 

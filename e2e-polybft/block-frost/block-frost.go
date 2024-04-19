@@ -30,13 +30,17 @@ type PostgresConfig struct {
 }
 
 func NewBlockFrost(cluster *cardanofw.TestCardanoCluster, id int) (*BlockFrost, error) {
-	clusterName := fmt.Sprintf("cluster-%d-%d", id, time.Now().Unix())
-	dockerDir := path.Join("../../e2e-docker-tmp", clusterName)
-	if err := common.CreateDirSafe(dockerDir, 0750); err != nil {
+	dockerDir, err := os.MkdirTemp("", "blockfrost-docker")
+	if err != nil {
 		return nil, err
 	}
 
-	err := resolvePostgresFiles(dockerDir)
+	defer func() {
+		os.RemoveAll(dockerDir)
+		os.Remove(dockerDir)
+	}()
+
+	err = resolvePostgresFiles(dockerDir)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +67,7 @@ func NewBlockFrost(cluster *cardanofw.TestCardanoCluster, id int) (*BlockFrost, 
 	return &BlockFrost{
 		Id:          id,
 		RootDir:     dockerDir,
-		ClusterName: clusterName,
+		ClusterName: fmt.Sprintf("cluster-%d-%d", id, time.Now().Unix()),
 	}, nil
 }
 
