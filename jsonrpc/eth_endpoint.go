@@ -1161,9 +1161,7 @@ func (e *Eth) Sign(_ types.Address, buf argBytes) (interface{}, error) {
 	signature, err := e.txSigner.SignText(tx, cryptoECDSAPrivKey)
 	if err != nil {
 		return nil, err
-	}
-
-	if err == nil {
+	} else {
 		signature[64] += 27 // Transform V from 0/1 to 27/28 according to the yellow paper
 	}
 
