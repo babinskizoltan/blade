@@ -67,7 +67,7 @@ func TestE2E_CardanoTwoClustersBasic(t *testing.T) {
 			bf, _ := blockfrost.NewBlockFrost(cluster, id+1)
 			bf.Start()
 
-			errors[id] = cluster.WaitForBlockWithState(1000, time.Second*2000)
+			errors[id] = cluster.WaitForBlockWithState(10, time.Second*200)
 			bf.Stop()
 		}()
 	}

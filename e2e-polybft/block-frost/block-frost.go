@@ -46,14 +46,16 @@ func NewBlockFrost(cluster *cardanofw.TestCardanoCluster, id int) (*BlockFrost, 
 		return nil, err
 	}
 
-	err = resolveConfigFiles(cluster.Config.TmpDir, dockerDir)
+	ekgPort := 12788 + id
+	postgresPort := 5432 + id
+	blockfrostPort := 12000 + id
+
+	err = resolveConfigFiles(cluster.Config.TmpDir, dockerDir, ekgPort)
 	if err != nil {
 		return nil, err
 	}
 
-	postgresPort := 5432 + id
-	blockfrostPort := 12000 + id
-	err = resolveDockerCompose(dockerDir, postgresPort, blockfrostPort)
+	err = resolveDockerCompose(dockerDir, postgresPort, blockfrostPort, ekgPort)
 	if err != nil {
 		return nil, err
 	}
@@ -86,10 +88,10 @@ func (bf *BlockFrost) Stop() error {
 
 	// remove volumes
 	runCommand("docker", []string{"volume", "rm",
-		fmt.Sprintf(bf.ClusterName, "-db-sync-data"),
-		fmt.Sprintf(bf.ClusterName, "-node-db"),
-		fmt.Sprintf(bf.ClusterName, "-node-ipc"),
-		fmt.Sprintf(bf.ClusterName, "-postgres")})
+		fmt.Sprintf(bf.ClusterName, "_db-sync-data"),
+		fmt.Sprintf(bf.ClusterName, "_node-db"),
+		fmt.Sprintf(bf.ClusterName, "_node-ipc"),
+		fmt.Sprintf(bf.ClusterName, "_postgres")})
 
 	return nil
 }
@@ -133,7 +135,7 @@ func resolveGenesisFiles(rootDir string, dockerDir string) error {
 	return nil
 }
 
-func resolveConfigFiles(rootDir string, dockerDir string) error {
+func resolveConfigFiles(rootDir string, dockerDir string, ekgPort int) error {
 	configPath := path.Join(dockerDir, "config")
 	if err := common.CreateDirSafe(configPath, 0750); err != nil {
 		return err
@@ -158,6 +160,7 @@ func resolveConfigFiles(rootDir string, dockerDir string) error {
 	nodeConfigSrc := "../block-frost/docker-files/node_config.yaml"
 	nodeConfig := filepath.Join(dbsyncPath, "config.yaml")
 	copyFile(nodeConfigSrc, nodeConfig)
+	replaceLine(nodeConfig, "hasEKG: 12788", fmt.Sprintf("hasEKG: %d", ekgPort))
 
 	byronGenesis := filepath.Join(rootDir, "genesis/byron/genesis.json")
 	byronHash, err := runCommand("cardano-cli", []string{"byron", "genesis", "print-genesis-hash", "--genesis-json", byronGenesis})
@@ -210,7 +213,7 @@ func resolveConfigFiles(rootDir string, dockerDir string) error {
 	return nil
 }
 
-func resolveDockerCompose(dockerDir string, postgresPort int, blockfrostPort int) error {
+func resolveDockerCompose(dockerDir string, postgresPort int, blockfrostPort int, ekgPort int) error {
 	dockerFileSrc := "../block-frost/docker-files/docker-compose.yml"
 	dockerFile := filepath.Join(dockerDir, "docker-compose.yml")
 	copyFile(dockerFileSrc, dockerFile)
@@ -220,6 +223,8 @@ func resolveDockerCompose(dockerDir string, postgresPort int, blockfrostPort int
 
 	replaceLine(dockerFile, "      - ${POSTGRES_PORT:-3000}:3000", fmt.Sprintf("      - ${POSTGRES_PORT:-%d}:%d", blockfrostPort, blockfrostPort))
 	replaceLine(dockerFile, "      - BLOCKFROST_CONFIG_SERVER_PORT=3000", fmt.Sprintf("      - BLOCKFROST_CONFIG_SERVER_PORT=%d", blockfrostPort))
+
+	replaceLine(dockerFile, "      test: [\"CMD-SHELL\", \"curl -f 127.0.0.1:12788 || exit 1\"]", fmt.Sprintf("      test: [\"CMD-SHELL\", \"curl -f 127.0.0.1:%d || exit 1\"]", ekgPort))
 
 	return nil
 }
@@ -406,70 +411,6 @@ func replaceLine(filePath string, search string, replace string) error {
 
 	return nil
 }
-
-// func replaceStringInFile(filePath string, find string, replace string) {
-// 	// Open the file for reading and writing
-// 	file, err := os.OpenFile(filePath, os.O_RDWR, 0644)
-// 	if err != nil {
-// 		fmt.Println("Error:", err)
-// 		return
-// 	}
-// 	defer file.Close()
-
-// 	file2, err := os.OpenFile(filePath+"_new", os.O_RDWR|os.O_CREATE, 0644)
-// 	if err != nil {
-// 		fmt.Println("Error:", err)
-// 		return
-// 	}
-// 	defer file.Close()
-
-// 	// Create a scanner to read from the file
-// 	scanner := bufio.NewScanner(file)
-
-// 	// Create a writer to write to the same file
-// 	writer := bufio.NewWriter(file2)
-
-// 	// Keep track of line number
-// 	lineNumber := 0
-
-// 	// Loop through each line in the file
-// 	for scanner.Scan() {
-// 		lineNumber++
-// 		line := scanner.Text()
-
-// 		// Modify specific lines
-// 		if strings.Contains(line, find) {
-// 			_, err := writer.WriteString(replace + "\n")
-// 			if err != nil {
-// 				fmt.Println("Error writing to file:", err)
-// 				return
-// 			}
-// 		} else {
-// 			// If the line doesn't need to be modified, just write it back as is
-// 			_, err := writer.WriteString(line + "\n")
-// 			if err != nil {
-// 				fmt.Println("Error writing to file:", err)
-// 				return
-// 			}
-// 		}
-// 	}
-
-// 	// Check for any scanning errors
-// 	if err := scanner.Err(); err != nil {
-// 		fmt.Println("Error reading file:", err)
-// 		return
-// 	}
-
-// 	// Flush the writer to ensure all data is written to the file
-// 	err = writer.Flush()
-// 	if err != nil {
-// 		fmt.Println("Error flushing writer:", err)
-// 		return
-// 	}
-
-// 	// Replace original
-
-// }
 
 func runCommand(binary string, args []string, envVariables ...string) (string, error) {
 	var (
