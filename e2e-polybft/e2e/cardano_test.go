@@ -77,7 +77,7 @@ func TestE2E_CardanoTwoClustersBasic(t *testing.T) {
 
 			defer bf.Stop()
 
-			cluster.WaitForBlockWithState(10, time.Second*200)
+			errors[id] = cluster.WaitForBlockWithState(10, time.Second*200)
 		}()
 	}
 
