@@ -797,6 +797,10 @@ func (c *CallMsg) MarshalJSON() ([]byte, error) {
 		o.Set("type", a.NewString(fmt.Sprintf("0x%x", c.Type)))
 	}
 
+	if c.Type != 0 {
+		o.Set("type", a.NewString(fmt.Sprintf("0x%x", c.Type)))
+	}
+
 	if c.AccessList != nil {
 		o.Set("accessList", c.AccessList.MarshalJSONWith(a))
 	}
