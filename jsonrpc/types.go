@@ -151,12 +151,6 @@ type block struct {
 	Uncles       []types.Hash        `json:"uncles"`
 }
 
-// SignTransactionResult represents a RLP encoded signed transaction.
-type SignTransactionResult struct {
-	Raw *argBytes    `json:"raw"`
-	Tx  *transaction `json:"tx"`
-}
-
 func (b *block) Copy() *block {
 	bb := new(block)
 	*bb = *b
@@ -789,17 +783,8 @@ func (c *CallMsg) MarshalJSON() ([]byte, error) {
 		o.Set("input", a.NewString(fmt.Sprintf("0x%x", c.Input)))
 	}
 
-	if c.Nonce != 0 {
-		o.Set("nonce", a.NewString(fmt.Sprintf("0x%x", c.Nonce)))
-	}
-
-	if c.Type != 0 {
-		o.Set("type", a.NewString(fmt.Sprintf("0x%x", c.Type)))
-	}
-
-	if c.Type != 0 {
-		o.Set("type", a.NewString(fmt.Sprintf("0x%x", c.Type)))
-	}
+	o.Set("nonce", a.NewString(fmt.Sprintf("0x%x", c.Nonce)))
+	o.Set("type", a.NewString(fmt.Sprintf("0x%x", c.Type)))
 
 	if c.AccessList != nil {
 		o.Set("accessList", c.AccessList.MarshalJSONWith(a))

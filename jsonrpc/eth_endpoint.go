@@ -372,6 +372,8 @@ func (e *Eth) SendRawTransaction(buf argBytes) (interface{}, error) {
 		return nil, err
 	}
 
+	e.logger.Debug("SendRawTransaction", "tx", tx.String())
+
 	// tx hash will be calculated inside e.store.AddTx
 	if err := e.store.AddTx(tx); err != nil {
 		return nil, err
@@ -403,12 +405,7 @@ func (e *Eth) SignTransaction(args *txnArgs) (interface{}, error) {
 
 	data := signedTx.MarshalRLP()
 
-	res := &SignTransactionResult{
-		Raw: argBytesPtr(data),
-		Tx:  toPendingTransaction(signedTx),
-	}
-
-	return res, nil
+	return argBytesPtr(data), nil
 }
 
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the
@@ -1158,7 +1155,7 @@ func (e *Eth) Sign(_ types.Address, buf argBytes) (interface{}, error) {
 		return nil, err
 	}
 
-	signature, err := e.txSigner.SignText(tx, cryptoECDSAPrivKey)
+	signature, err := e.txSigner.SignCanonical(tx, cryptoECDSAPrivKey)
 	if err != nil {
 		return nil, err
 	} else {

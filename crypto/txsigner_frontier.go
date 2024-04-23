@@ -82,38 +82,21 @@ func (signer *FrontierSigner) sender(tx *types.Transaction, isHomestead bool) (t
 		return types.Address{}, errors.New("failed to recover sender, because signature is unknown")
 	}
 
-	// Reverse the V calculation to find the parity of the Y coordinate
-	// v = {0, 1} + 27 -> {0, 1} = v - 27
-	parity := big.NewInt(0).Sub(v, big27)
+	parity := signer.calculateParity(v)
 
 	return recoverAddress(signer.Hash(tx), r, s, parity, isHomestead)
 }
 
-// SignText this method should return the signature in 'canonical' format, with v 0 or 1.
-func (signer *FrontierSigner) SignText(tx *types.Transaction, privateKey *ecdsa.PrivateKey) ([]byte, error) {
-	return signer.signTextInternal(tx, privateKey)
-}
-
-func (signer *FrontierSigner) signTextInternal(tx *types.Transaction, privateKey *ecdsa.PrivateKey) ([]byte, error) {
-	if tx.Type() != types.LegacyTxType && tx.Type() != types.StateTxType {
-		return nil, types.ErrTxTypeNotSupported
-	}
-
-	tx = tx.Copy()
-	hash := signer.Hash(tx)
-
-	signature, err := Sign(privateKey, hash[:])
+// SignCanonical this method should return the signature in 'canonical' format, with v 0 or 1.
+func (signer *FrontierSigner) SignCanonical(tx *types.Transaction, privateKey *ecdsa.PrivateKey) ([]byte, error) {
+	signedTx, err := signer.SignTx(tx, privateKey)
 	if err != nil {
 		return nil, err
 	}
 
-	if signature[64] == 27 || signature[64] == 28 {
-		// If clef is used as a backend, it may already have transformed
-		// the signature to ethereum-type signature.
-		signature[64] -= 27 // Transform V from Ethereum-legacy to 0/1
-	}
+	v, r, s := signedTx.RawSignatureValues()
 
-	return signature, nil
+	return encodeSignature(r, s, signer.calculateParity(v), true)
 }
 
 // SignTx takes the original transaction as input and returns its signed version
@@ -171,4 +154,11 @@ func (signer *FrontierSigner) calculateV(parity byte) []byte {
 	result.Add(big.NewInt(int64(parity)), big27)
 
 	return result.Bytes()
+}
+
+// calculateParity returns the parity of the Y coordinate
+// Reverse the V calculation to find the parity of the Y coordinate
+// v = {0, 1} + 27 -> {0, 1} = v - 27
+func (signer *FrontierSigner) calculateParity(v *big.Int) *big.Int {
+	return big.NewInt(0).Sub(v, big27)
 }

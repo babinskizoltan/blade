@@ -29,8 +29,8 @@ type TxSigner interface {
 	// Sender returns the sender of the transaction
 	Sender(*types.Transaction) (types.Address, error)
 
-	// SignText this method should return the signature in 'canonical' format, with v 0 or 1.
-	SignText(*types.Transaction, *ecdsa.PrivateKey) ([]byte, error)
+	// SignCanonical this method should return the signature in 'canonical' format, with v 0 or 1.
+	SignCanonical(*types.Transaction, *ecdsa.PrivateKey) ([]byte, error)
 
 	// SignTx takes the original transaction as input and returns its signed version
 	SignTx(*types.Transaction, *ecdsa.PrivateKey) (*types.Transaction, error)

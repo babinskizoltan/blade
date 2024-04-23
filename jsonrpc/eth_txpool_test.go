@@ -55,11 +55,7 @@ func TestEth_TxnPool_SignTransaction(t *testing.T) {
 
 	res, err := eth.SignTransaction(txToSend)
 	assert.NoError(t, err)
-	assert.NotNil(t, res)
-
-	bres := res.(*SignTransactionResult)
-	assert.NotEqual(t, bres.Tx.Hash, types.ZeroHash)
-	assert.NotNil(t, bres.Raw)
+	assert.NotEmpty(t, res)
 }
 
 func TestEth_TxnPool_SendTransaction(t *testing.T) {

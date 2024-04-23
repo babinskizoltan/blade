@@ -311,15 +311,7 @@ func TestE2E_JsonRPC(t *testing.T) {
 	})
 
 	t.Run("eth_signTransaction", func(t *testing.T) {
-		deployTxn := cluster.Deploy(t, preminedAcct, contractsapi.TestSimple.Bytecode)
-		require.True(t, deployTxn.Succeed())
-
-		target := types.Address(deployTxn.Receipt().ContractAddress)
-		input := contractsapi.TestSimple.Abi.GetMethod("getValue").ID()
-
-		zeroAddress := types.ZeroAddress
-
-		newNonce, err := ethClient.GetNonce(target, jsonrpc.LatestBlockNumberOrHash)
+		nonce, err := ethClient.GetNonce(preminedAcct.Address(), jsonrpc.LatestBlockNumberOrHash)
 		require.NoError(t, err)
 
 		chainID, err := ethClient.ChainID()
@@ -328,36 +320,44 @@ func TestE2E_JsonRPC(t *testing.T) {
 		gasPrice, err := ethClient.GasPrice()
 		require.NoError(t, err)
 
+		target := types.StringToAddress("0xDEADBEEF")
+
 		txn := &jsonrpc.CallMsg{
-			From:     zeroAddress,
+			From:     preminedAcct.Address(),
 			To:       &target,
-			Gas:      2100,
-			GasPrice: new(big.Int).SetUint64(gasPrice),
-			//MaxPriorityFeePerGas: new(big.Int).SetUint64(0),
-			//MaxFeePerGas:         new(big.Int).SetUint64(10),
-			Nonce:   newNonce,
-			Data:    input,
-			ChainID: chainID,
+			Gas:      21000,
+			GasPrice: new(big.Int).SetUint64(gasPrice * 2),
+			Nonce:    nonce,
+			ChainID:  chainID,
+			Value:    big.NewInt(1),
 		}
 
 		res, err := ethClient.SignTransaction(txn)
 		require.NoError(t, err)
-		require.NotEqual(t, types.ZeroHash, res.Tx.From)
-		require.NotNil(t, res.Raw)
-		require.NotEqual(t, 0, len(*res.Raw))
+		require.NotEmpty(t, res)
+
+		hash, err := ethClient.SendRawTransaction(res)
+		require.NoError(t, err)
+		require.NotEqual(t, types.ZeroHash, hash)
+
+		require.NoError(t, cluster.WaitUntil(time.Minute, 2*time.Second, func() bool {
+			receipt, err := ethClient.GetTransactionReceipt(hash)
+			if err != nil || receipt == nil {
+				return false
+			}
+
+			return true
+		}))
 	})
 
 	t.Run("eth_sign", func(t *testing.T) {
 		receiver := types.StringToAddress("0xDEADFFFF")
 		tokenAmount := ethgo.Ether(1)
 
-		chainID, err := ethClient.ChainID()
-		require.NoError(t, err)
-
 		gasPrice, err := ethClient.GasPrice()
 		require.NoError(t, err)
 
-		newAccountKey, newAccountAddr := tests.GenerateKeyAndAddr(t)
+		_, newAccountAddr := tests.GenerateKeyAndAddr(t)
 
 		transferTxn := cluster.Transfer(t, preminedAcct, newAccountAddr, tokenAmount)
 		require.True(t, transferTxn.Succeed())
@@ -376,13 +376,11 @@ func TestE2E_JsonRPC(t *testing.T) {
 				types.WithGasPrice(new(big.Int).SetUint64(gasPrice)),
 			))
 
-		signedTxn, err := crypto.NewLondonSigner(chainID.Uint64()).SignTx(txn, newAccountKey)
-		require.NoError(t, err)
-
-		data := signedTxn.MarshalRLPTo(nil)
+		data := txn.MarshalRLPTo(nil)
 
 		dataSign, err := ethClient.Sign(preminedAcct.Address(), data)
 		require.NoError(t, err)
+		require.Len(t, dataSign, 65)
 		require.NotEqual(t, 0, dataSign[64])
 	})
 

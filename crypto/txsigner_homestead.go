@@ -56,8 +56,3 @@ func (signer *HomesteadSigner) SignTx(tx *types.Transaction, privateKey *ecdsa.P
 
 	return tx, nil
 }
-
-// SignText this method should return the signature in 'canonical' format, with v 0 or 1.
-func (signer *HomesteadSigner) SignText(tx *types.Transaction, privateKey *ecdsa.PrivateKey) ([]byte, error) {
-	return signer.signTextInternal(tx, privateKey)
-}
