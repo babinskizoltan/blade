@@ -664,6 +664,10 @@ func (j *jsonRPCHub) GetForksInTime(blockNumber uint64) chain.ForksInTime {
 	return j.Executor.GetForksInTime(blockNumber)
 }
 
+func (j *jsonRPCHub) NewSnapshotAt(stateRoot types.Hash) (state.Snapshot, error) {
+	return j.state.NewSnapshotAt(stateRoot)
+}
+
 func (j *jsonRPCHub) GetStorage(stateRoot types.Hash, addr types.Address, slot types.Hash) ([]byte, error) {
 	account, err := getAccountImpl(j.state, stateRoot, addr)
 	if err != nil {

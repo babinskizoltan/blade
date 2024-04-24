@@ -640,6 +640,23 @@ func convertToArgUint64SliceSlice(slice [][]uint64) [][]argUint64 {
 	return argSlice
 }
 
+// Result structs for GetProof
+type AccountResult struct {
+	Address      types.Address   `json:"address"`
+	AccountProof []string        `json:"accountProof"`
+	Balance      *argBig         `json:"balance"`
+	CodeHash     types.Hash      `json:"codeHash"`
+	Nonce        uint64          `json:"nonce"`
+	StorageHash  types.Hash      `json:"storageHash"`
+	StorageProof []StorageResult `json:"storageProof"`
+}
+
+type StorageResult struct {
+	Key   string   `json:"key"`
+	Value *argBig  `json:"value"`
+	Proof []string `json:"proof"`
+}
+
 type OverrideAccount struct {
 	Nonce     *argUint64                 `json:"nonce"`
 	Code      *argBytes                  `json:"code"`

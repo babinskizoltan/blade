@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 
@@ -44,6 +45,7 @@ type Account struct {
 }
 
 type ethStateStore interface {
+	NewSnapshotAt(stateRoot types.Hash) (state.Snapshot, error)
 	GetAccount(root types.Hash, addr types.Address) (*Account, error)
 	GetStorage(root types.Hash, addr types.Address, slot types.Hash) ([]byte, error)
 	GetForksInTime(blockNumber uint64) chain.ForksInTime
@@ -1163,4 +1165,114 @@ func (e *Eth) Sign(_ types.Address, buf argBytes) (interface{}, error) {
 	}
 
 	return argBytesPtr(signature), err
+}
+
+// GetProof returns the Merkle-proof for a given account and optionally some storage keys.
+func (e *Eth) GetProof(address types.Address, storageKeys []string, filter BlockNumberOrHash) (interface{}, error) {
+	header, err := GetHeaderFromBlockNumberOrHash(filter, e.store)
+	if err != nil {
+		return nil, err
+	}
+
+	snap, err := e.store.NewSnapshotAt(header.StateRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := snap.GetAccount(address)
+	if err != nil {
+		return nil, err
+	}
+
+	codeHash := crypto.Keccak256Hash(nil)
+	nonce := uint64(0)
+
+	storageHash := snap.GetStorage(address, header.StateRoot, types.Hash{})
+
+	var balance *argBig
+	balance = nil
+
+	if account != nil {
+		balance = argBigPtr(account.Balance)
+		nonce = account.Nonce
+
+		if len(storageHash) != 0 {
+			codeHash = types.BytesToHash(account.CodeHash)
+		} else {
+			storageHash = types.EmptyRootHash
+		}
+	}
+
+	storageProof := make([]StorageResult, len(storageKeys))
+	newTxn := state.NewTxn(snap)
+	// create the proof for the storageKeys
+	for i, hexKey := range storageKeys {
+		key, err := decodeHash(hexKey)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(storageHash) != 0 {
+			proof, storageError := newTxn.GetStorageProof(address, key)
+			if storageError != nil {
+				return nil, storageError
+			}
+
+			bigInt := newTxn.GetState(address, key).Big()
+			storageProof[i] = StorageResult{hexKey, argBigPtr(bigInt), toHexSlice(proof)}
+		} else {
+			storageProof[i] = StorageResult{hexKey, nil, []string{}}
+		}
+	}
+
+	// create the accountProof
+	accountProof, proofErr := snap.GetProof(address)
+	if proofErr != nil {
+		return nil, proofErr
+	}
+
+	res := &AccountResult{
+		Address:      address,
+		AccountProof: toHexSlice(accountProof),
+		Balance:      balance,
+		CodeHash:     codeHash,
+		Nonce:        nonce,
+		StorageHash:  storageHash,
+		StorageProof: storageProof,
+	}
+
+	return res, nil
+}
+
+// decodeHash parses a hex-encoded 32-byte hash. The input may optionally
+// be prefixed by 0x and can have an byte length up to 32.
+func decodeHash(s string) (types.Hash, error) {
+	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
+		s = s[2:]
+	}
+
+	if (len(s) & 1) > 0 {
+		s = "0" + s
+	}
+
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return types.Hash{}, fmt.Errorf("hex string invalid")
+	}
+
+	if len(b) > 32 {
+		return types.Hash{}, fmt.Errorf("hex string too long, want at most 32 bytes")
+	}
+
+	return types.BytesToHash(b), nil
+}
+
+// toHexSlice creates a slice of hex-strings based on []byte.
+func toHexSlice(b [][]byte) []string {
+	r := make([]string, len(b))
+	for i := range b {
+		r[i] = *common.EncodeBytes(b[i])
+	}
+
+	return r
 }
