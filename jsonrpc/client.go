@@ -148,8 +148,7 @@ func (e *EthClient) SendTransactionCallMsg(msg *CallMsg) (types.Hash, error) {
 // SendTransaction creates new message call transaction or a contract creation
 func (e *EthClient) SignTransaction(msg *CallMsg) ([]byte, error) {
 	var signTransactionResult string
-	err := e.client.Call("eth_signTransaction", &signTransactionResult, msg)
-	if err != nil {
+	if err := e.client.Call("eth_signTransaction", &signTransactionResult, msg); err != nil {
 		return nil, err
 	}
 

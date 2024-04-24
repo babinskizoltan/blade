@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygon/polygon-edge/consensus/polybft/contractsapi"
 	"github.com/0xPolygon/polygon-edge/crypto"
 	"github.com/0xPolygon/polygon-edge/e2e-polybft/framework"
+	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/helper/tests"
 	"github.com/0xPolygon/polygon-edge/jsonrpc"
 	"github.com/0xPolygon/polygon-edge/txrelayer"
@@ -380,8 +381,11 @@ func TestE2E_JsonRPC(t *testing.T) {
 
 		dataSign, err := ethClient.Sign(preminedAcct.Address(), data)
 		require.NoError(t, err)
-		require.Len(t, dataSign, 65)
-		require.NotEqual(t, 0, dataSign[64])
+
+		sig, err := hex.DecodeHex(dataSign)
+		require.NoError(t, err)
+		require.Len(t, sig, 65)
+		require.NotEqual(t, 0, sig[64])
 	})
 
 	t.Run("eth_getHeaderByNumber", func(t *testing.T) {
