@@ -141,6 +141,9 @@ func (r *BaseLoadTestRunner) fundVUs() error {
 	}()
 
 	amountToFund := ethgo.Ether(1000)
+	if r.cfg.VUs > 1000 {
+		amountToFund = ethgo.Ether(uint64(1_000_000 / r.cfg.VUs))
+	}
 
 	txRelayer, err := txrelayer.NewTxRelayer(
 		txrelayer.WithClient(r.client),
@@ -181,7 +184,7 @@ func (r *BaseLoadTestRunner) fundVUs() error {
 				}
 
 				if receipt == nil || receipt.Status != uint64(types.ReceiptSuccess) {
-					return fmt.Errorf("failed to mint ERC20 tokens to %s", vu.key.Address())
+					return fmt.Errorf("failed to fund native tokens to %s", vu.key.Address())
 				}
 
 				_ = bar.Add(1)
@@ -764,7 +767,7 @@ func (r *BaseLoadTestRunner) sendTransactionsForUser(account *account, chainID *
 	checkFeeDataNum := r.cfg.TxsPerUser / 5
 
 	for i := 0; i < r.cfg.TxsPerUser; i++ {
-		if i%checkFeeDataNum == 0 {
+		if checkFeeDataNum > 0 && i%checkFeeDataNum == 0 {
 			feeData, err = getFeeData(r.client, r.cfg.DynamicTxs)
 			if err != nil {
 				return nil, nil, err

@@ -439,6 +439,16 @@ func ForkManagerFactory(forks *chain.Forks) error {
 	return nil
 }
 
+// IsL1OriginatedTokenCheck checks if the token is originated from L1
+func IsL1OriginatedTokenCheck(config *chain.Params) (bool, error) {
+	polyBFTConfig, err := GetPolyBFTConfig(config)
+	if err != nil {
+		return false, err
+	}
+
+	return polyBFTConfig.IsBridgeEnabled() && !polyBFTConfig.NativeTokenConfig.IsMintable, nil
+}
+
 // Initialize initializes the consensus (e.g. setup data)
 func (p *Polybft) Initialize() error {
 	p.logger.Info("initializing polybft...")
@@ -630,16 +640,6 @@ func (p *Polybft) startConsensusProtocol() {
 		stopSequence func()
 	)
 
-	// check every block time * 1.5, so we don't artificially close a sequence
-	// before the actual sequence has ended properly
-	checkOffset := p.config.BlockTime
-	if checkOffset > 1 {
-		checkOffset /= 2
-	}
-
-	checkFrequency := time.Duration(p.config.BlockTime + checkOffset)
-	staleChecker := newStaleSequenceCheck(p.logger, p.blockchain.CurrentHeader, checkFrequency*time.Second)
-
 	for {
 		latestHeader := p.blockchain.CurrentHeader()
 
@@ -663,8 +663,6 @@ func (p *Polybft) startConsensusProtocol() {
 			}
 
 			sequenceCh, stopSequence = p.ibft.runSequence(latestHeader.Number + 1)
-			staleChecker.setSequence(latestHeader.Number + 1)
-			staleChecker.startChecking()
 		}
 
 		now := time.Now().UTC()
@@ -675,24 +673,14 @@ func (p *Polybft) startConsensusProtocol() {
 				stopSequence()
 				p.logger.Info("canceled sequence", "sequence", latestHeader.Number+1)
 			}
-		case <-staleChecker.sequenceShouldStop:
-			if isValidator {
-				stopSequence()
-				p.logger.Info("canceled sequence via stale checker", "sequence", latestHeader.Number+1)
-			}
 		case <-sequenceCh:
 		case <-p.closeCh:
 			p.logger.Debug("stoping sequence", "block number", latestHeader.Number+1)
 			if isValidator {
 				stopSequence()
-				staleChecker.stopChecking()
 			}
 
 			return
-		}
-
-		if isValidator {
-			staleChecker.stopChecking()
 		}
 
 		p.logger.Debug("time to run the sequence", "seconds", time.Since(now))
