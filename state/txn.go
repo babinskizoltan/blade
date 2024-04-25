@@ -35,6 +35,7 @@ type proofList [][]byte
 
 func (n *proofList) Put(key []byte, value []byte) error {
 	*n = append(*n, value)
+
 	return nil
 }
 
@@ -673,7 +674,8 @@ func (txn *Txn) GetStorageProof(a types.Address, key types.Hash) ([][]byte, erro
 		return proof, errors.New("storage trie for requested address does not exist")
 	}
 
-	// TODO
+	//nolint:godox
+	// TODO trie.Prove
 	// err := trie.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
 	return proof, nil
 }
